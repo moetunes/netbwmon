@@ -1,7 +1,7 @@
 # NETBWMON
 
 Network monitor based on [nbwmon](https://github.com/causes-/nbwmon) and 
-[netmon][https://github.com/vurtun/netmon] but
+[netmon](https://github.com/vurtun/netmon) but
 without Ncurses dependency and only Linux support.
 
 ```
