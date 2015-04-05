@@ -33,6 +33,12 @@ Options:
     - supports multiple units
     - color support
 
+## Keys
+
+    - q .. quit
+    - d .. increase update time + 0.5 sec
+    - D .. decrease update time - 0.5 sec
+
 # License
 (The MIT License)
 

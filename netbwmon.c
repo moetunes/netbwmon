@@ -395,7 +395,7 @@ print_graph(const Graph *graph, size_t lines, size_t cols, bool si)
     if (graph->color != COLOR_DEFAULT)
         term_color(TERM_FRGRND, graph->color);
 
-    for (i = 0; i < lines- 1; i++) {
+    for (i = 0; i < lines; i++) {
         term_move_to((unsigned)x, (unsigned)(y + i));
         term_erase(TERM_LINE);
         fputc('_', stdout);
@@ -407,11 +407,9 @@ print_graph(const Graph *graph, size_t lines, size_t cols, bool si)
     char buf1[MAX_BUF];
     const char *max = btos(graph->max, buf, MAX_BUF, si);
     const char *curr = btos(graph->data[cols-1], buf1, MAX_BUF, si);
-    term_printf(x + 1, y, "[ %6s/s ][ %s/s ]", curr, max);
-    //term_printf(x+15, y, "[ %s/s ]", btos(graph->data[cols-1], buf, MAX_BUF, si));
-    term_printf(x + 1, y + lines-1, "[ %s/s ]", btos(0.0, buf, MAX_BUF, si));
+    term_printf(x + 5, y, "[ %6s/s ][ %s/s ]", curr, max);
 
-    lines = lines - 1;
+    //lines = lines - 1;
     for (j = lines-1; j > 0; --j) {
         for (i = cols-1; i > 0; --i) {
             if (!graph->data[cols-i] || !graph->max)
@@ -420,11 +418,12 @@ print_graph(const Graph *graph, size_t lines, size_t cols, bool si)
             const size_t bar_height = lines-((graph->data[cols-i]*lines)/graph->max);
             if(j == lines-1 && bar_height > 0) {
                 term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc('*', stdout);
+                fputc('#', stdout);
+                continue;
             }
             if (bar_height < j) {
                 term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc('*', stdout);
+                fputc('#', stdout);
             }
         }
     }
@@ -452,8 +451,8 @@ print_stats(const Interface *ifa, size_t line, size_t width, bool si)
     const char fmt1[] = "%6s %s";
 
     term_printf((width/2)-8, line++, "[ Interface: %s ]\n", ifa->name);
-    term_printf(col_rx, line, fmt, "avg:", btos(ifa->rx_avg,buf,MAX_BUF,si));
-    term_printf(col_tx, line++, fmt, "avg:", btos(ifa->tx_avg,buf,MAX_BUF,si));
+    term_printf(col_rx, line, fmt, "DOWN : avg:", btos(ifa->rx_avg,buf,MAX_BUF,si));
+    term_printf(col_tx, line++, fmt, "UP   : avg:", btos(ifa->tx_avg,buf,MAX_BUF,si));
     term_printf(col_rx, line, fmt1, "total:", btos(ifa->rx, buf, MAX_BUF, si));
     term_printf(col_tx, line, fmt1, "total:", btos(ifa->tx, buf, MAX_BUF, si));
 }
@@ -585,6 +584,8 @@ main(int argc, char *argv[])
             const int c = term_getch();
             if (c == TERM_ERR || c == 'q')
                 sighandler(EXIT_SUCCESS);
+            else if(c == 'd') delay += 0.5f;
+            else if(c == 'D' && delay > 0.5f) delay -= 0.5f;
         }
 
         if (term_resized) {
