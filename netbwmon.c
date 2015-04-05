@@ -418,6 +418,10 @@ print_graph(const Graph *graph, size_t lines, size_t cols, bool si)
                 continue;
 
             const size_t bar_height = lines-((graph->data[cols-i]*lines)/graph->max);
+            if(j == lines-1 && bar_height > 0) {
+                term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
+                fputc('*', stdout);
+            }
             if (bar_height < j) {
                 term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
                 fputc('*', stdout);
