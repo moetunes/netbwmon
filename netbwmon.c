@@ -407,7 +407,7 @@ print_graph(const Graph *graph, size_t lines, size_t cols, bool si)
     char buf1[MAX_BUF];
     const char *max = btos(graph->max, buf, MAX_BUF, si);
     const char *curr = btos(graph->data[cols-1], buf1, MAX_BUF, si);
-    term_printf(x + 1, y, "[ %s/s ][ %s/s ]", curr, max);
+    term_printf(x + 1, y, "[ %6s/s ][ %s/s ]", curr, max);
     //term_printf(x+15, y, "[ %s/s ]", btos(graph->data[cols-1], buf, MAX_BUF, si));
     term_printf(x + 1, y + lines-1, "[ %s/s ]", btos(0.0, buf, MAX_BUF, si));
 
@@ -448,12 +448,8 @@ print_stats(const Interface *ifa, size_t line, size_t width, bool si)
     const char fmt1[] = "%6s %s";
 
     term_printf((width/2)-8, line++, "[ Interface: %s ]\n", ifa->name);
-    //term_printf(col_rx, line, fmt,"RX:",btos(ifa->rxs[cols-1],buf,MAX_BUF,si));
-    //term_printf(col_tx, line++,fmt,"TX:",btos(ifa->txs[cols-1],buf,MAX_BUF,si));
     term_printf(col_rx, line, fmt, "avg:", btos(ifa->rx_avg,buf,MAX_BUF,si));
     term_printf(col_tx, line++, fmt, "avg:", btos(ifa->tx_avg,buf,MAX_BUF,si));
-    //term_printf(col_rx, line, fmt, "max:", btos(ifa->rx_max,buf,MAX_BUF,si));
-    //term_printf(col_tx, line++, fmt, "max:", btos(ifa->tx_max,buf,MAX_BUF,si));
     term_printf(col_rx, line, fmt1, "total:", btos(ifa->rx, buf, MAX_BUF, si));
     term_printf(col_tx, line, fmt1, "total:", btos(ifa->tx, buf, MAX_BUF, si));
 }
