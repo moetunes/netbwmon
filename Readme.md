@@ -5,7 +5,7 @@ Network monitor based on [nbwmon](https://github.com/causes-/nbwmon) and
 without Ncurses dependency and only Linux support.
 
 ```
-$ netbwmon -s -d 0.5 -i wlan0
+$ netbwmon -s -q -d 0.5 -i wlan0
 ```
 
 ![network monitor](/screen/screen.png?raw=true)

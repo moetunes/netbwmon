@@ -29,7 +29,7 @@
 #include "arg.h"
 
 /* Character to print to the xcreen for the graph */
-#define TERM_CHAR       'ÿ'
+#define TERM_CHAR       '#'
 /* Colour for down and up graphs - up to 256*/
 #define COLOR_RX        243 //TERM_YELLOW
 #define COLOR_TX        240 //TERM_BLUE
