@@ -22,6 +22,7 @@ Options:
     -s,         use SI units
     -d <sec>,   redraw delay
     -i <int>,   network interface
+    -q          quiet <don't show stats>
 ```
 
 ## Features
@@ -31,13 +32,14 @@ Options:
     - total traffic
     - window scaling
     - supports multiple units
-    - color support
+    - 256 color support
 
 ## Keys
 
     - q .. quit
     - d .. increase update time + 0.5 sec
     - D .. decrease update time - 0.5 sec
+    - v .. toggle interface name, average and total stats
 
 # License
 (The MIT License)
