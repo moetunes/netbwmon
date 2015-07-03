@@ -28,19 +28,21 @@
 
 #include "arg.h"
 
-/* Character to print to the xcreen for the graph */
-#define TERM_CHAR       '#'
-/* Colour for down and up graphs - up to 256*/
-#define COLOR_RX        243 //TERM_YELLOW
-#define COLOR_TX        240 //TERM_BLUE
+/*** USER ***/
+/* Character to print to the screen for the graph */
+#define TERM_CHAR       '|' //'ÿ'
+/* Colour for down and up graphs and stats
+for 8 colour ttys 0-7
+for 256 colours - 0-255 */
+#define COLOR_RX        243
+#define COLOR_TX        240
+#define COLOR_STATS     255
 /* Delay in seconds - can be fractions */
 #define DELAY           1.5
 
+/*** SYSTEM ***/
 /* macros */
 #define TERM_ERR        (-1)
-#define TERM_FRGRND     3
-#define TERM_BKGRND     4
-
 #define TERM_END        "K"
 #define TERM_START      "1K"
 #define TERM_LINE       "2K"
@@ -52,8 +54,10 @@
 #define COLOR_DEFAULT   (-1)
 #define APP_VERSION     "3"
 
-#define term_color(d,c)     printf("\e[38;5;%dm", (c))
-#define term_color_reset(d) printf("\e[%d9m", (d))
+#define term_color(c)       printf("\e[38;5;%dm", (c))
+/* term_color with background */
+/* #define term_color(c)      printf("\e[48;5;240;38;5;%dm%s\e[0m", (c), TERM_CHAR); */
+#define term_color_reset()  printf("\e[39m")
 #define term_erase(c)       printf("\e[%s", (c))
 #define term_move_to(x,y)   printf("\e[%u;%u;f", (y), (x))
 #define term_reset()        printf("\e[0m");
@@ -67,17 +71,6 @@ typedef unsigned long ulong;
 typedef struct Terminal Terminal;
 typedef struct Interface Interface;
 typedef struct Graph Graph;
-
-enum {
-    TERM_BLACK,
-    TERM_RED,
-    TERM_GREEN,
-    TERM_YELLOW,
-    TERM_BLUE,
-    TERM_MAGENTA,
-    TERM_CYAN,
-    TERM_WHITE
-};
 
 struct Terminal {
     size_t width;
@@ -101,12 +94,9 @@ struct Interface {
 };
 
 struct Graph {
-    size_t nlines;
-    size_t ncols;
     size_t begin_x;
     size_t begin_y;
-    int color;
-    const char *title;
+    unsigned int color;
     ulong *data;
     ulong max;
 };
@@ -144,8 +134,7 @@ static void sighandler(int);
 static void print_graph_up(const Graph*, size_t, size_t, bool);
 static void print_graph_down(const Graph*, size_t, size_t, bool);
 static void print_stats(const Interface*, size_t, size_t, bool);
-
-static unsigned int sstats;
+static void print_title(const char *, size_t x);
 
 static void
 die(const char *fmt, ...)
@@ -402,41 +391,31 @@ print_graph_down(const Graph *graph, size_t lines, size_t cols, bool si)
     const size_t y = graph->begin_y;
 
     if (graph->color != COLOR_DEFAULT)
-        term_color(TERM_FRGRND, graph->color);
+        term_color(graph->color);
 
-    for (i = 0; i < lines; i++) {
+    for (i = 0; i < lines*2; ++i) {
         term_move_to((unsigned)x, (unsigned)(y + i));
         term_erase(TERM_LINE);
-        fputc('|', stdout);
-        term_move_to((unsigned)x+cols+3, (unsigned)(y + i));
-        fputc('|', stdout);
     }
 
     char buf[MAX_BUF];
     char buf1[MAX_BUF];
     const char *max = btos(graph->max, buf, MAX_BUF, si);
     const char *curr = btos(graph->data[cols-1], buf1, MAX_BUF, si);
-    term_printf(x + 5, y, "[ %6s/s ][ %s/s ]", curr, max);
+    term_printf(x + 5, y, "[ %8s/s ][ %3s/s ]", max, curr);
 
-    //lines = lines - 1;
-    for (j = lines-1; j > 0; --j) {
-        for (i = cols-1; i > 0; --i) {
-            if (!graph->data[cols-i] || !graph->max)
-                continue;
-
-            const size_t bar_height = lines-((graph->data[cols-i]*lines)/graph->max);
-            if(j == lines-1 && bar_height > 0) {
-                term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc(TERM_CHAR, stdout);
-                continue;
-            }
-            if (bar_height < j) {
-                term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc(TERM_CHAR, stdout);
-            }
+    --lines;
+    for (i = 0; i < cols; ++i) {
+        if (!graph->data[i] || !graph->max)
+            continue;
+        term_move_to((unsigned)(cols-i + x), (unsigned)(y+lines));
+        fputc(TERM_CHAR, stdout);
+        const size_t bar_height = lines-((graph->data[i]*lines)/graph->max);
+        for (j = bar_height; j < lines-1; ++j) {
+            term_move_to((unsigned)(cols-i + x), (unsigned)(j + y+1));
+            fputc(TERM_CHAR, stdout);
         }
     }
-    term_color_reset(TERM_FRGRND);
 }
 
 static void
@@ -451,41 +430,26 @@ print_graph_up(const Graph *graph, size_t lines, size_t cols, bool si)
     const size_t y = graph->begin_y;
 
     if (graph->color != COLOR_DEFAULT)
-        term_color(TERM_FRGRND, graph->color);
-
-    for (i = 0; i < lines; i++) {
-        term_move_to((unsigned)x, (unsigned)(y + i));
-        term_erase(TERM_LINE);
-        fputc('|', stdout);
-        term_move_to((unsigned)x+cols+3, (unsigned)(y + i));
-        fputc('|', stdout);
-    }
+        term_color(graph->color);
 
     char buf[MAX_BUF];
     char buf1[MAX_BUF];
     const char *max = btos(graph->max, buf, MAX_BUF, si);
     const char *curr = btos(graph->data[cols-1], buf1, MAX_BUF, si);
-    term_printf(x + 5, y+lines-1, "[ %6s/s ][ %s/s ]", curr, max);
+    term_printf(x + 5, y+lines, "[ %8s/s ][ %3s/s ]", max, curr);
 
-    //lines = lines - 1;
-    for (j = 0; j < lines-1; ++j) {
-        for (i = cols-1; i > 0; --i) {
-            if (!graph->data[cols-i] || !graph->max)
-                continue;
-
-            const size_t bar_height = ((graph->data[cols-i]*lines)/graph->max);
-            if(j == 0 && bar_height > 0) {
-                term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc(TERM_CHAR, stdout);
-                continue;
-            }
-            if (j < bar_height) {
-                term_move_to((unsigned)(i + x + 2), (unsigned)(j + y));
-                fputc(TERM_CHAR, stdout);
-            }
+    for (i = 0; i < cols; ++i) {
+        if (!graph->data[i] || !graph->max)
+            continue;
+        term_move_to((unsigned)(cols-i + x), (unsigned)(y));
+        fputc(TERM_CHAR, stdout);
+        const size_t bar_height = (graph->data[i]*lines)/graph->max;
+        for (j = 1; j < bar_height; ++j) {
+            term_move_to((unsigned)(cols-i + x), (unsigned)(j + y));
+            fputc(TERM_CHAR, stdout);
         }
     }
-    term_color_reset(TERM_FRGRND);
+    term_color_reset();
 }
 
 static void
@@ -497,23 +461,33 @@ print_stats(const Interface *ifa, size_t line, size_t width, bool si)
 
     size_t i = 0;
     line += 2;
-    for (i = line; i < line + 2; i++) {
+    for (i = line; i < line + 2; ++i) {
         term_move_to(0, (int)i);
         term_erase(TERM_LINE);
     }
 
     char buf[MAX_BUF] = {0};
-    const size_t cols = ifa->size;
-    const ulong col_rx = ifa->size / 4 - 8;
-    const ulong col_tx = col_rx + ifa->size / 2 + 1;
+    const ulong col_left = ifa->size/2-20;
+    const ulong col_right = ifa->size/2+3;
     const char fmt[] = "%6s %s/s";
     const char fmt1[] = "%6s %s";
 
-    term_printf((width/2)-8, 0, "[ Interface: %s ]\n", ifa->name);
-    term_printf(col_rx, line, fmt, "DOWN : avg:", btos(ifa->rx_avg,buf,MAX_BUF,si));
-    term_printf(col_tx, line++, fmt, "UP   : avg:", btos(ifa->tx_avg,buf,MAX_BUF,si));
-    term_printf(col_rx, line, fmt1, "total:", btos(ifa->rx, buf, MAX_BUF, si));
-    term_printf(col_tx, line, fmt1, "total:", btos(ifa->tx, buf, MAX_BUF, si));
+    term_color(COLOR_STATS);
+    term_printf(col_left, line, fmt, "DOWN : avg:", btos(ifa->rx_avg,buf,MAX_BUF,si));
+    term_printf(col_right, line++, fmt1, "total:", btos(ifa->rx, buf, MAX_BUF, si));
+    term_printf(col_left, line, fmt, "UP   : avg:", btos(ifa->tx_avg,buf,MAX_BUF,si));
+    term_printf(col_right, line, fmt1, "total:", btos(ifa->tx, buf, MAX_BUF, si));
+    term_color_reset();
+}
+
+static void
+print_title(const char *title, size_t x)
+{
+    term_move_to(0, 0);
+    term_erase(TERM_LINE);
+    term_color(COLOR_STATS);
+    term_printf(x, 0, "[ Interface: %s ]\n", title);
+    term_color_reset();
 }
 
 static void
@@ -569,7 +543,7 @@ main(int argc, char *argv[])
     bool siunits = false;
     size_t graph_lines = 0;
     size_t stats_lines = 0;
-    sstats = 0;
+    unsigned int sstats = 1;
 
     ARG_BEGIN {
     case 'v':
@@ -588,7 +562,7 @@ main(int argc, char *argv[])
         strlcpy(ifa.name, ARG_EF(usage(argv0)), IFNAMSIZ);
         break;
     case 'q':
-        sstats = 1;
+        sstats = 0;
         break;
     case 'h':
     default:
@@ -614,28 +588,24 @@ main(int argc, char *argv[])
     term_cursor_hide();
 
     /* Interface */
-    size_t cols = term.width - 3;
+    size_t cols = term.width;
     ifa.rxs = ecalloc(cols, sizeof(*ifa.rxs));
     ifa.txs = ecalloc(cols, sizeof(*ifa.txs));
     ifa.size = cols;
 
     /* Graphs */
-    graph_lines = (sstats == 0) ? (term.height - 3)/2: term.height/2;
+    graph_lines = (sstats) ? (term.height - 3)/2: term.height/2;
     stats_lines = term.height-3;
 
-    graph_rx.title = "[ RX ]";
-    graph_rx.nlines = graph_lines;
-    graph_rx.ncols = term.width;
-    graph_rx.begin_y = (sstats == 0) ? 2: 1;
+    graph_rx.begin_y = (sstats) ? 2: 1;
     graph_rx.begin_x = 0;
     graph_rx.color = colors ? COLOR_RX : COLOR_DEFAULT;
 
-    graph_tx.title = "[ TX ]";
-    graph_tx.nlines = graph_lines;
-    graph_tx.ncols = term.width;
-    graph_tx.begin_y = (sstats == 0) ? graph_lines+2: graph_lines+1;
+    graph_tx.begin_y = (sstats) ? graph_lines+2: graph_lines+1;
     graph_tx.begin_x = 0;
     graph_tx.color = colors ? COLOR_TX : COLOR_DEFAULT;
+
+    print_title(ifa.name, (term.width/2)-8);
 
     /* Signals */
     signal(SIGINT, sighandler);
@@ -652,20 +622,19 @@ main(int argc, char *argv[])
             else if(c == 'D' && delay > 0.5f) delay -= 0.5f;
             else if(c == 'v') {
                 term_clear();
-                if(sstats == 1) {
-                    sstats = 0;
+                if(!sstats) {
+                    sstats = 1;
                     graph_lines = (term.height - 3) / 2;
                     graph_rx.begin_y = 2;
                     graph_tx.begin_y = graph_lines + 2;
+                    print_title(ifa.name, (term.width/2)-8);
                     print_stats(&ifa, stats_lines, term.width, siunits);
                 } else {
-                    sstats = 1;
+                    sstats = 0;
                     graph_lines = (term.height) / 2;
                     graph_rx.begin_y = 1;
                     graph_tx.begin_y = graph_lines + 1;
                 }
-                graph_rx.nlines = graph_lines;
-                graph_tx.nlines = graph_lines;
             }
         }
 
@@ -675,9 +644,9 @@ main(int argc, char *argv[])
             if (term.width < 3 || term.height < 9)
                 die("terminal is to small!\n");
 
-            ifa.size = width-3;
-            ulong *rxs = array_dup(ifa.rxs, width-3, term.width-3);
-            ulong *txs = array_dup(ifa.txs, width-3, term.width-3);
+            ifa.size = width;
+            ulong *rxs = array_dup(ifa.rxs, width, term.width);
+            ulong *txs = array_dup(ifa.txs, width, term.width);
             free(ifa.rxs);
             free(ifa.txs);
             ifa.rxs = rxs;
@@ -686,17 +655,15 @@ main(int argc, char *argv[])
             term.width = width;
             term.height = height;
 
-            graph_lines = (sstats == 0) ? (term.height - 3)/2: term.height/2;
+            graph_lines = (sstats) ? (term.height - 3)/2: term.height/2;
             stats_lines = term.height-3;
-            graph_rx.nlines = graph_lines;
-            graph_tx.nlines = graph_lines;
-            graph_rx.ncols = term.width;
-            graph_tx.ncols = term.width;
-            graph_rx.begin_y = (sstats == 0) ? 2: 1;
-            graph_tx.begin_y = (sstats == 0) ? graph_lines+2: graph_lines+1;
+            graph_rx.begin_y = (sstats) ? 2: 1;
+            graph_tx.begin_y = (sstats) ? graph_lines+2: graph_lines+1;
 
             term_resized = 0;
             term_clear();
+            print_title(ifa.name, (term.width/2)-8);
+            print_stats(&ifa, stats_lines, term.width, siunits);
         }
 
         /* Update */
@@ -709,9 +676,9 @@ main(int argc, char *argv[])
 
         /* Draw */
         print_graph_down(&graph_rx, graph_lines, ifa.size, siunits);
-        print_graph_up(&graph_tx, graph_lines, ifa.size, siunits);
+        print_graph_up(&graph_tx, graph_lines-1, ifa.size, siunits);
         if(aa == 10) aa = 0;
-        if(aa == 1 && sstats == 0) print_stats(&ifa, stats_lines, term.width, siunits);
+        if(aa == 1 && sstats) print_stats(&ifa, stats_lines, term.width, siunits);
         ++aa;
         fflush (stdout);
         sleep_for((long long)(delay * 1000.0));
